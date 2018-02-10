@@ -30,7 +30,7 @@ fi
 ####
 
 # define arch official repo (aor) packages
-aor_packages="intellij-idea-community-edition"
+aor_packages=""
 
 # call aor script (arch official repo)
 source /root/aor.sh
@@ -43,22 +43,6 @@ aur_packages=""
 
 # call aur install script (arch user repo)
 source /root/aur.sh
-
-# config intellij
-####
-
-# set intellij path selector, this changes the path used by intellij to check for a custom idea.properties file
-# the path is constructed from /home/nobody/.<idea.paths.selector value>/config/ so the idea.properties file then needs
-# to be located in /home/nobody/.config/intellij/idea.properties, note double backslash to escape end backslash
-sed -i -e 's~-Didea.paths.selector=.*~-Didea.paths.selector=config/intellij \\~g' /usr/share/intellijidea-ce/bin/idea.sh
-
-# set intellij paths for config, plugins, system and log, note the location of the idea.properties
-# file is constructed from the idea.paths.selector value, as shown above.
-mkdir -p /home/nobody/.config/intellij/config
-echo "idea.config.path=/config/intellij/config" > /home/nobody/.config/intellij/config/idea.properties
-echo "idea.plugins.path=/config/intellij/config/plugins" >> /home/nobody/.config/intellij/config/idea.properties
-echo "idea.system.path=/config/intellij/system" >> /home/nobody/.config/intellij/config/idea.properties
-echo "idea.log.path=/config/intellij/system/log" >> /home/nobody/.config/intellij/config/idea.properties
 
 cat <<'EOF' > /tmp/startcmd_heredoc
 # check if recent projects directory config file exists, if it doesnt we assume
@@ -112,10 +96,54 @@ rm /tmp/menu_heredoc
 
 # create file with contets of here doc
 cat <<'EOF' > /tmp/permissions_heredoc
+if [ ! -d /opt/intellij/bin ]; then
+    pkgver=2017.3.4
+    _buildver=173.4548.28
+    echo "[info] Installing Intellij Ultimate v$pkgver..." | ts '%Y-%m-%d %H:%M:%.S'
+    curl --connect-timeout 5 --max-time 600 --retry 5 --retry-delay 0 --retry-max-time 60 -o /tmp/ideaIU-${pkgver}.tar.gz -L https://download.jetbrains.com/idea/ideaIU-${pkgver}.tar.gz
+    tar xf /tmp/ideaIU-${pkgver}.tar.gz -C /tmp/
+    mv /tmp/idea-IU-${_buildver}/* /opt/intellij/
+    rm -rf /tmp/idea-IU-${_buildver}
+    rm /tmp/ideaIU-${pkgver}.tar.gz
+
+    echo "[info] Setting up Intellij installation..." | ts '%Y-%m-%d %H:%M:%.S'
+    chown -R "${PUID}":"${PGID}" /opt/intellij
+    chmod +x /opt/intellij/plugins/maven/lib/maven3/bin/mvn
+
+    # set intellij path selector, this changes the path used by intellij to check for a custom idea.properties file
+    # the path is constructed from /home/nobody/.<idea.paths.selector value>/config/ so the idea.properties file then needs
+    # to be located in /home/nobody/.config/intellij/idea.properties, note double backslash to escape end backslash
+    sed -i -e 's~-Didea.paths.selector=.*~-Didea.paths.selector=config/intellij \\~g' /opt/intellij/bin/idea.sh
+
+    # set intellij paths for config, plugins, system and log, note the location of the idea.properties
+    # file is constructed from the idea.paths.selector value, as shown above.
+    mkdir -p /home/nobody/.config/intellij/config
+    echo "idea.config.path=/config/intellij/config" > /home/nobody/.config/intellij/config/idea.properties
+    echo "idea.plugins.path=/config/intellij/config/plugins" >> /home/nobody/.config/intellij/config/idea.properties
+    echo "idea.system.path=/config/intellij/system" >> /home/nobody/.config/intellij/config/idea.properties
+    echo "idea.log.path=/config/intellij/system/log" >> /home/nobody/.config/intellij/config/idea.properties
+    chown -R "${PUID}":"${PGID}" /home/nobody/.config
+fi
+
+if [ ! -d /data/.nvm ]; then
+    echo "[info] Installing nvm..." | ts '%Y-%m-%d %H:%M:%.S'
+    mkdir -p /data/.nvm
+    curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | sh
+    nvm install node
+    chown -R "${PUID}":"${PGID}" /data/.nvm
+
+    # set nvm in .bashrc
+    touch /home/nobody/.bashrc
+    echo "export NVM_DIR=\"/data/.nvm\"" > /home/nobody/.bashrc
+    echo "[ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"" > /home/nobody/.bashrc
+    chown "${PUID}":"${PGID}" /home/nobody/.bashrc
+fi
+
 echo "[info] Setting permissions on files/folders inside container..." | ts '%Y-%m-%d %H:%M:%.S'
 
-chown -R "${PUID}":"${PGID}" /tmp /usr/share/themes /home/nobody /usr/share/novnc /usr/share/intellijidea-ce/ /usr/share/applications/ /etc/xdg
-chmod -R 775 /tmp /usr/share/themes /home/nobody /usr/share/novnc /usr/share/intellijidea-ce/ /usr/share/applications/ /etc/xdg
+chown -R "${PUID}":"${PGID}" /tmp /usr/share/themes /home/nobody /usr/share/novnc /opt/intellij /usr/share/applications/ /etc/xdg
+chmod -R 775 /tmp /usr/share/themes /home/nobody /usr/share/novnc /usr/share/applications/ /etc/xdg
+ln -s /opt/intellij/bin/idea.sh /usr/bin/idea.sh
 
 EOF
 
