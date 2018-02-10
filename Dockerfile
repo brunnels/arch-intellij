@@ -1,5 +1,5 @@
 FROM binhex/arch-basegui
-MAINTAINER binhex
+MAINTAINER brunnels
 
 # additional files
 ##################
